@@ -15,6 +15,7 @@ const CORS_PROXIES = [
   (url: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
 ];
 const MAX_EPISODES = 10;
+const DEFAULT_FEED_URL = 'https://feed.articlesofinterest.club/';
 
 const SAMPLE_FEEDS = [
   { name: 'This American Life', url: 'https://www.thisamericanlife.org/podcast/rss.xml' },
@@ -191,6 +192,11 @@ function App() {
     }
   }, [selectedEpisode, loadAudio]);
 
+  // Auto-load default feed on mount
+  useEffect(() => {
+    handleLoadFeed(DEFAULT_FEED_URL);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const isCurrentFeedSaved = feed ? isFeedSaved(feed.feedUrl) : false;
 
   return (
@@ -236,12 +242,12 @@ function App() {
             <div className="mt-3 bg-zinc-900 border border-zinc-800 rounded-xl p-5">
               <h2 className="text-lg font-medium text-zinc-100 mb-3">How it works</h2>
               <p className="text-zinc-400 text-sm leading-relaxed mb-4">
-                Paste a podcast RSS feed URL above to start listening. As you listen, add emoji reactions
-                and comments at any moment - they'll be timestamped and saved so you can revisit them later.
-                Click on any reaction to jump back to that moment in the episode.
+                We've pre-loaded <span className="text-zinc-200">Articles of Interest</span> for you to try.
+                Select an episode below, then add emoji reactions and comments as you listen - they'll be
+                timestamped and saved. Click any reaction to jump back to that moment.
               </p>
               <div className="mb-4">
-                <h3 className="text-sm font-medium text-zinc-300 mb-2">Try one of these podcasts:</h3>
+                <h3 className="text-sm font-medium text-zinc-300 mb-2">Or try another podcast:</h3>
                 <div className="flex flex-wrap gap-2">
                   {SAMPLE_FEEDS.map((sampleFeed) => (
                     <button
@@ -257,7 +263,8 @@ function App() {
                 </div>
               </div>
               <p className="text-zinc-500 text-xs">
-                Want to add your own podcasts? Find RSS feeds at{' '}
+                Note: Loading feeds can take 10-15 seconds. We show the 10 most recent episodes.
+                Want to add your own? Find RSS feeds at{' '}
                 <a
                   href="https://castos.com/tools/find-podcast-rss-feed/"
                   target="_blank"
@@ -265,8 +272,7 @@ function App() {
                   className="text-emerald-500 hover:text-emerald-400 underline"
                 >
                   Castos RSS Finder
-                </a>
-                {' '}or look for the RSS icon on your favorite podcast's website.
+                </a>.
               </p>
             </div>
           )}
