@@ -10,9 +10,9 @@ import { useReactions } from './hooks/useReactions';
 import { Episode, PodcastFeed } from './types/podcast';
 
 const CORS_PROXIES = [
-  (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
   (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  (url: string) => `https://cors-anywhere.herokuapp.com/${url}`,
+  (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  (url: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
 ];
 const MAX_EPISODES = 10;
 
@@ -21,7 +21,7 @@ const SAMPLE_FEEDS = [
   { name: 'The Rest Is Politics', url: 'https://feeds.megaphone.fm/GLT9190936013' },
   { name: 'The Daily', url: 'https://feeds.simplecast.com/Sl5CSM3S' },
   { name: 'Science Vs', url: 'https://feeds.megaphone.fm/sciencevs' },
-  { name: '99% Invisible', url: 'https://feeds.simplecast.com/BqbsxVfO' },
+  { name: 'The Memory Palace', url: 'http://feeds.thememorypalace.us/thememorypalace' },
 ];
 
 async function fetchWithFallback(url: string, signal?: AbortSignal): Promise<string> {
@@ -36,9 +36,9 @@ async function fetchWithFallback(url: string, signal?: AbortSignal): Promise<str
     try {
       const proxyUrl = proxyFn(url);
 
-      // Create a timeout promise
+      // Create a timeout promise (15s to handle slow proxies)
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Timeout')), 8000);
+        setTimeout(() => reject(new Error('Timeout')), 15000);
       });
 
       // Create the fetch promise
