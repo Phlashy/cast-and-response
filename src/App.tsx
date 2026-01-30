@@ -114,6 +114,7 @@ function App() {
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(true);
 
   const { isPlaying, currentTime, duration, isLoaded, playbackRate, togglePlay, seek, setSpeed, loadAudio } = useAudioPlayer();
   const { savedFeeds, saveFeed, removeFeed, isFeedSaved } = useSavedFeeds();
@@ -293,10 +294,24 @@ function App() {
           </div>
         )}
 
-        {!feed && !isLoading && !error && (
-          <div className="py-8">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-6">
-              <h2 className="text-lg font-medium text-zinc-100 mb-3">How it works</h2>
+        <div className="mb-6">
+          <button
+            onClick={() => setShowHelp(!showHelp)}
+            className="flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-300 transition-colors"
+          >
+            <svg
+              className={`w-4 h-4 transition-transform ${showHelp ? 'rotate-90' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            {showHelp ? 'Hide help' : 'Show help & sample podcasts'}
+          </button>
+
+          {showHelp && (
+            <div className="mt-3 bg-zinc-900 border border-zinc-800 rounded-xl p-5">
               <p className="text-zinc-400 text-sm leading-relaxed mb-4">
                 Paste a podcast RSS feed URL above to start listening. As you listen, add emoji reactions
                 and comments at any moment - they'll be timestamped and saved so you can revisit them later.
@@ -305,15 +320,15 @@ function App() {
               <div className="mb-4">
                 <h3 className="text-sm font-medium text-zinc-300 mb-2">Try one of these podcasts:</h3>
                 <div className="flex flex-wrap gap-2">
-                  {SAMPLE_FEEDS.map((feed) => (
+                  {SAMPLE_FEEDS.map((sampleFeed) => (
                     <button
-                      key={feed.url}
-                      onClick={() => handleLoadFeed(feed.url)}
+                      key={sampleFeed.url}
+                      onClick={() => handleLoadFeed(sampleFeed.url)}
                       className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg
                                text-sm text-zinc-300 hover:bg-zinc-700 hover:border-zinc-600
                                transition-colors"
                     >
-                      {feed.name}
+                      {sampleFeed.name}
                     </button>
                   ))}
                 </div>
@@ -331,8 +346,8 @@ function App() {
                 {' '}or look for the RSS icon on your favorite podcast's website.
               </p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
