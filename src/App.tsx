@@ -16,6 +16,14 @@ const CORS_PROXIES = [
 ];
 const MAX_EPISODES = 10;
 
+const SAMPLE_FEEDS = [
+  { name: 'This American Life', url: 'https://www.thisamericanlife.org/podcast/rss.xml' },
+  { name: 'The Rest Is Politics', url: 'https://feeds.megaphone.fm/GLT9190936013' },
+  { name: 'The Daily', url: 'https://feeds.simplecast.com/Sl5CSM3S' },
+  { name: 'Science Vs', url: 'https://feeds.megaphone.fm/sciencevs' },
+  { name: '99% Invisible', url: 'https://feeds.simplecast.com/BqbsxVfO' },
+];
+
 async function fetchWithFallback(url: string, signal?: AbortSignal): Promise<string> {
   let lastError: Error | null = null;
 
@@ -286,8 +294,43 @@ function App() {
         )}
 
         {!feed && !isLoading && !error && (
-          <div className="text-center py-16 text-zinc-600">
-            <p className="text-lg">Paste a podcast RSS feed URL to get started</p>
+          <div className="py-8">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-6">
+              <h2 className="text-lg font-medium text-zinc-100 mb-3">How it works</h2>
+              <p className="text-zinc-400 text-sm leading-relaxed mb-4">
+                Paste a podcast RSS feed URL above to start listening. As you listen, add emoji reactions
+                and comments at any moment - they'll be timestamped and saved so you can revisit them later.
+                Click on any reaction to jump back to that moment in the episode.
+              </p>
+              <div className="mb-4">
+                <h3 className="text-sm font-medium text-zinc-300 mb-2">Try one of these podcasts:</h3>
+                <div className="flex flex-wrap gap-2">
+                  {SAMPLE_FEEDS.map((feed) => (
+                    <button
+                      key={feed.url}
+                      onClick={() => handleLoadFeed(feed.url)}
+                      className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg
+                               text-sm text-zinc-300 hover:bg-zinc-700 hover:border-zinc-600
+                               transition-colors"
+                    >
+                      {feed.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-zinc-500 text-xs">
+                Want to add your own podcasts? Find RSS feeds at{' '}
+                <a
+                  href="https://castos.com/tools/find-podcast-rss-feed/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-emerald-500 hover:text-emerald-400 underline"
+                >
+                  Castos RSS Finder
+                </a>
+                {' '}or look for the RSS icon on your favorite podcast's website.
+              </p>
+            </div>
           </div>
         )}
       </div>
