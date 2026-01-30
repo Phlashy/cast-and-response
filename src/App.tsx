@@ -216,6 +216,62 @@ function App() {
           onRemoveFeed={removeFeed}
         />
 
+        <div className="mb-6">
+          <button
+            onClick={() => setShowHelp(!showHelp)}
+            className="flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-300 transition-colors"
+          >
+            <svg
+              className={`w-4 h-4 transition-transform ${showHelp ? 'rotate-90' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            {showHelp ? 'Hide help' : 'Show help & sample podcasts'}
+          </button>
+
+          {showHelp && (
+            <div className="mt-3 bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+              <h2 className="text-lg font-medium text-zinc-100 mb-3">How it works</h2>
+              <p className="text-zinc-400 text-sm leading-relaxed mb-4">
+                Paste a podcast RSS feed URL above to start listening. As you listen, add emoji reactions
+                and comments at any moment - they'll be timestamped and saved so you can revisit them later.
+                Click on any reaction to jump back to that moment in the episode.
+              </p>
+              <div className="mb-4">
+                <h3 className="text-sm font-medium text-zinc-300 mb-2">Try one of these podcasts:</h3>
+                <div className="flex flex-wrap gap-2">
+                  {SAMPLE_FEEDS.map((sampleFeed) => (
+                    <button
+                      key={sampleFeed.url}
+                      onClick={() => handleLoadFeed(sampleFeed.url)}
+                      className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg
+                               text-sm text-zinc-300 hover:bg-zinc-700 hover:border-zinc-600
+                               transition-colors"
+                    >
+                      {sampleFeed.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-zinc-500 text-xs">
+                Want to add your own podcasts? Find RSS feeds at{' '}
+                <a
+                  href="https://castos.com/tools/find-podcast-rss-feed/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-emerald-500 hover:text-emerald-400 underline"
+                >
+                  Castos RSS Finder
+                </a>
+                {' '}or look for the RSS icon on your favorite podcast's website.
+              </p>
+            </div>
+          )}
+        </div>
+
         {error && (
           <div className="mb-6 p-4 bg-red-900/20 border border-red-800 rounded-lg text-red-400">
             {error}
@@ -293,61 +349,6 @@ function App() {
             </div>
           </div>
         )}
-
-        <div className="mb-6">
-          <button
-            onClick={() => setShowHelp(!showHelp)}
-            className="flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-300 transition-colors"
-          >
-            <svg
-              className={`w-4 h-4 transition-transform ${showHelp ? 'rotate-90' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            {showHelp ? 'Hide help' : 'Show help & sample podcasts'}
-          </button>
-
-          {showHelp && (
-            <div className="mt-3 bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-              <p className="text-zinc-400 text-sm leading-relaxed mb-4">
-                Paste a podcast RSS feed URL above to start listening. As you listen, add emoji reactions
-                and comments at any moment - they'll be timestamped and saved so you can revisit them later.
-                Click on any reaction to jump back to that moment in the episode.
-              </p>
-              <div className="mb-4">
-                <h3 className="text-sm font-medium text-zinc-300 mb-2">Try one of these podcasts:</h3>
-                <div className="flex flex-wrap gap-2">
-                  {SAMPLE_FEEDS.map((sampleFeed) => (
-                    <button
-                      key={sampleFeed.url}
-                      onClick={() => handleLoadFeed(sampleFeed.url)}
-                      className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-lg
-                               text-sm text-zinc-300 hover:bg-zinc-700 hover:border-zinc-600
-                               transition-colors"
-                    >
-                      {sampleFeed.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <p className="text-zinc-500 text-xs">
-                Want to add your own podcasts? Find RSS feeds at{' '}
-                <a
-                  href="https://castos.com/tools/find-podcast-rss-feed/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-emerald-500 hover:text-emerald-400 underline"
-                >
-                  Castos RSS Finder
-                </a>
-                {' '}or look for the RSS icon on your favorite podcast's website.
-              </p>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
