@@ -37,9 +37,9 @@ async function fetchWithFallback(url: string, signal?: AbortSignal): Promise<str
     try {
       const proxyUrl = proxyFn(url);
 
-      // Create a timeout promise (15s to handle slow proxies)
+      // Create a timeout promise (45s to handle slow proxies and large feeds)
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Timeout')), 15000);
+        setTimeout(() => reject(new Error('Timeout')), 45000);
       });
 
       // Create the fetch promise
@@ -62,7 +62,7 @@ async function fetchWithFallback(url: string, signal?: AbortSignal): Promise<str
     }
   }
 
-  throw lastError || new Error('All CORS proxies failed. Please try again.');
+  throw lastError || new Error('Failed to load feed. Large podcast archives may take longer or fail to load.');
 }
 
 async function parseFeed(url: string, signal?: AbortSignal): Promise<PodcastFeed> {
@@ -263,8 +263,8 @@ function App() {
                 </div>
               </div>
               <p className="text-zinc-500 text-xs">
-                Note: Loading feeds can take 10-15 seconds. We show the 10 most recent episodes.
-                Want to add your own? Find RSS feeds at{' '}
+                Note: Loading feeds can take 15-45 seconds. Podcasts with large archives may load slowly or fail.
+                We show the 10 most recent episodes. Want to add your own? Find RSS feeds at{' '}
                 <a
                   href="https://castos.com/tools/find-podcast-rss-feed/"
                   target="_blank"
