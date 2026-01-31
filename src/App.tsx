@@ -10,9 +10,11 @@ import { useReactions } from './hooks/useReactions';
 import { Episode, PodcastFeed } from './types/podcast';
 
 const CORS_PROXIES = [
+  // Our own Vercel proxy (no size limits)
+  (url: string) => `/api/proxy?url=${encodeURIComponent(url)}`,
+  // Fallback public proxies
   (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
   (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  (url: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
 ];
 const MAX_EPISODES = 10;
 const DEFAULT_FEED_URL = 'https://feed.articlesofinterest.club/';
@@ -25,48 +27,76 @@ const SAMPLE_FEEDS = [
   { name: 'The Memory Palace', url: 'http://feeds.thememorypalace.us/thememorypalace' },
 ];
 
-async function fetchWithFallback(url: string, signal?: AbortSignal): Promise<string> {
-  let lastError: Error | null = null;
+async function fetchWithParallelProxies(
+  url: string,
+  signal?: AbortSignal,
+  onStatus?: (status: string) => void
+): Promise<string> {
+  if (signal?.aborted) {
+    throw new Error('Cancelled');
+  }
 
-  for (const proxyFn of CORS_PROXIES) {
-    // Only check user cancellation (not timeout)
+  onStatus?.('Connecting to feed...');
+
+  // Create an AbortController for each proxy so we can cancel losers
+  const proxyControllers = CORS_PROXIES.map(() => new AbortController());
+  let winningIndex = -1;
+
+  // If parent signal aborts, abort all proxies
+  const abortAll = () => proxyControllers.forEach((c) => c.abort());
+  const abortLosers = () => proxyControllers.forEach((c, i) => {
+    if (i !== winningIndex) c.abort();
+  });
+  signal?.addEventListener('abort', abortAll);
+
+  try {
+    // Race all proxies in parallel with a 45s overall timeout
+    const fetchPromises = CORS_PROXIES.map(async (proxyFn, index) => {
+      const proxyUrl = proxyFn(url);
+      const response = await fetch(proxyUrl, { signal: proxyControllers[index].signal });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      // This proxy won the race - mark it and cancel others
+      winningIndex = index;
+      abortLosers();
+
+      onStatus?.('Downloading feed data...');
+      const text = await response.text();
+      return text;
+    });
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Timeout')), 45000);
+    });
+
+    // Use Promise.any to get the first successful response
+    const result = await Promise.race([
+      Promise.any(fetchPromises),
+      timeoutPromise,
+    ]);
+
+    onStatus?.('Parsing episodes...');
+    return result;
+  } catch (err) {
     if (signal?.aborted) {
       throw new Error('Cancelled');
     }
-
-    try {
-      const proxyUrl = proxyFn(url);
-
-      // Create a timeout promise (45s to handle slow proxies and large feeds)
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Timeout')), 45000);
-      });
-
-      // Create the fetch promise
-      const fetchPromise = fetch(proxyUrl, { signal });
-
-      // Race between fetch and timeout
-      const response = await Promise.race([fetchPromise, timeoutPromise]);
-
-      if (response.ok) {
-        return await response.text();
-      }
-    } catch (err) {
-      // Check if user cancelled
-      if (signal?.aborted) {
-        throw new Error('Cancelled');
-      }
-      // Timeout or network error - continue to next proxy
-      const message = err instanceof Error ? err.message : 'Fetch failed';
-      lastError = new Error(message === 'Timeout' ? 'Timeout' : message);
-    }
+    // Promise.any throws AggregateError if all promises reject
+    throw new Error('Failed to load feed. The podcast server may be slow or unavailable.');
+  } finally {
+    signal?.removeEventListener('abort', abortAll);
   }
-
-  throw lastError || new Error('Failed to load feed. Large podcast archives may take longer or fail to load.');
 }
 
-async function parseFeed(url: string, signal?: AbortSignal): Promise<PodcastFeed> {
-  const text = await fetchWithFallback(url, signal);
+async function parseFeed(
+  url: string,
+  signal?: AbortSignal,
+  onStatus?: (status: string) => void
+): Promise<PodcastFeed> {
+  const text = await fetchWithParallelProxies(url, signal, onStatus);
   const parser = new DOMParser();
   const xml = parser.parseFromString(text, 'application/xml');
 
@@ -114,6 +144,7 @@ function App() {
   const [feed, setFeed] = useState<PodcastFeed | null>(null);
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(true);
 
@@ -132,11 +163,12 @@ function App() {
     abortControllerRef.current = abortController;
 
     setIsLoading(true);
+    setLoadingStatus('Connecting to feed...');
     setError(null);
     setSelectedEpisode(null);
 
     try {
-      const parsedFeed = await parseFeed(url, abortController.signal);
+      const parsedFeed = await parseFeed(url, abortController.signal, setLoadingStatus);
       if (!abortController.signal.aborted) {
         setFeed(parsedFeed);
       }
@@ -150,6 +182,7 @@ function App() {
     } finally {
       if (!abortController.signal.aborted) {
         setIsLoading(false);
+        setLoadingStatus('');
       }
       if (abortControllerRef.current === abortController) {
         abortControllerRef.current = null;
@@ -212,7 +245,7 @@ function App() {
         </header>
 
         <div className="mb-6">
-          <FeedInput onLoadFeed={handleLoadFeed} onCancel={handleCancelLoad} isLoading={isLoading} />
+          <FeedInput onLoadFeed={handleLoadFeed} onCancel={handleCancelLoad} isLoading={isLoading} loadingStatus={loadingStatus} />
         </div>
 
         <SavedFeeds
