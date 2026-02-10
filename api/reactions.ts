@@ -1,24 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sql, initDb } from './lib/db';
+import { neon } from '@neondatabase/serverless';
 
-// Dynamic import for jwt
-let jwt: any;
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
-
-function getUserFromRequest(req: VercelRequest): { userId: number; email: string } | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null;
-  }
-
-  const token = authHeader.slice(7);
-  try {
-    return jwt.verify(token, JWT_SECRET) as { userId: number; email: string };
-  } catch {
-    return null;
-  }
-}
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
@@ -31,17 +14,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Dynamic import for jwt
-    if (!jwt) {
-      jwt = (await import('jsonwebtoken')).default;
-    }
+    // Import jwt dynamically
+    const jwt = (await import('jsonwebtoken')).default;
 
-    const user = getUserFromRequest(req);
-    if (!user) {
+    // Verify user from token
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    await initDb();
+    const token = authHeader.slice(7);
+    let user: { userId: number; email: string };
+    try {
+      user = jwt.verify(token, JWT_SECRET) as { userId: number; email: string };
+    } catch {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    if (!process.env.DATABASE_URL) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+    const sql = neon(process.env.DATABASE_URL);
+
+    // Ensure reactions table exists
+    await sql`
+      CREATE TABLE IF NOT EXISTS reactions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        episode_url TEXT NOT NULL,
+        podcast_title TEXT,
+        episode_title TEXT,
+        emoji VARCHAR(10) NOT NULL,
+        timestamp REAL NOT NULL,
+        comment TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
 
     // GET - fetch user's reactions for an episode
     if (req.method === 'GET') {
@@ -97,7 +105,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error: any) {
     console.error('Reactions error:', error);
-    const message = error?.message || 'Server error';
-    return res.status(500).json({ error: message });
+    return res.status(500).json({ error: 'Server error', details: error?.message });
   }
 }

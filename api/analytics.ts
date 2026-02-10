@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sql, initDb } from './lib/db';
+import { neon } from '@neondatabase/serverless';
 
 // Simple secret key protection for demo - in production, use proper podcaster auth
 const ANALYTICS_SECRET = process.env.ANALYTICS_SECRET || 'demo-secret';
@@ -26,7 +26,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    await initDb();
+    if (!process.env.DATABASE_URL) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+    const sql = neon(process.env.DATABASE_URL);
 
     // If episode is provided, get detailed analytics for that episode
     if (episode && typeof episode === 'string') {
@@ -95,8 +98,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `;
 
     return res.status(200).json({ episodes });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Analytics error:', error);
-    return res.status(500).json({ error: 'Server error' });
+    return res.status(500).json({ error: 'Server error', details: error?.message });
   }
 }
