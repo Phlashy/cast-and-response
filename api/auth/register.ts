@@ -1,6 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql, initDb } from '../lib/db';
-import { hashPassword, createToken } from '../lib/auth';
+
+// Use dynamic imports for CommonJS modules
+let bcrypt: any;
+let jwt: any;
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
@@ -27,6 +32,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Dynamic imports for CommonJS modules
+    if (!bcrypt) {
+      bcrypt = (await import('bcryptjs')).default;
+    }
+    if (!jwt) {
+      jwt = (await import('jsonwebtoken')).default;
+    }
+
     await initDb();
 
     // Check if user already exists
@@ -36,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Create user
-    const passwordHash = await hashPassword(password);
+    const passwordHash = await bcrypt.hash(password, 10);
     const result = await sql`
       INSERT INTO users (email, password_hash)
       VALUES (${email}, ${passwordHash})
@@ -44,7 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `;
 
     const user = result[0];
-    const token = createToken({ userId: user.id, email: user.email });
+    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
 
     return res.status(201).json({
       token,

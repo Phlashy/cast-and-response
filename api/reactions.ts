@@ -1,6 +1,24 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql, initDb } from './lib/db';
-import { getUserFromRequest } from './lib/auth';
+
+// Dynamic import for jwt
+let jwt: any;
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+
+function getUserFromRequest(req: VercelRequest): { userId: number; email: string } | null {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    return jwt.verify(token, JWT_SECRET) as { userId: number; email: string };
+  } catch {
+    return null;
+  }
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
@@ -12,12 +30,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  const user = getUserFromRequest(req);
-  if (!user) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
   try {
+    // Dynamic import for jwt
+    if (!jwt) {
+      jwt = (await import('jsonwebtoken')).default;
+    }
+
+    const user = getUserFromRequest(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     await initDb();
 
     // GET - fetch user's reactions for an episode
@@ -72,8 +95,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Reactions error:', error);
-    return res.status(500).json({ error: 'Server error' });
+    const message = error?.message || 'Server error';
+    return res.status(500).json({ error: message });
   }
 }

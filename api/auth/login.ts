@@ -1,6 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql, initDb } from '../lib/db';
-import { verifyPassword, createToken } from '../lib/auth';
+
+// Use dynamic imports for CommonJS modules
+let bcrypt: any;
+let jwt: any;
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
@@ -23,32 +28,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Dynamic imports for CommonJS modules
+    if (!bcrypt) {
+      bcrypt = (await import('bcryptjs')).default;
+    }
+    if (!jwt) {
+      jwt = (await import('jsonwebtoken')).default;
+    }
+
     await initDb();
 
     // Find user
-    const result = await sql`
-      SELECT id, email, password_hash FROM users WHERE email = ${email}
-    `;
-
-    if (result.length === 0) {
+    const users = await sql`SELECT id, email, password_hash FROM users WHERE email = ${email}`;
+    if (users.length === 0) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const user = result[0];
-    const validPassword = await verifyPassword(password, user.password_hash);
+    const user = users[0];
 
-    if (!validPassword) {
+    // Verify password
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const token = createToken({ userId: user.id, email: user.email });
+    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
 
     return res.status(200).json({
       token,
       user: { id: user.id, email: user.email },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Login error:', error);
-    return res.status(500).json({ error: 'Failed to login' });
+    const message = error?.message || 'Failed to log in';
+    return res.status(500).json({ error: message });
   }
 }
