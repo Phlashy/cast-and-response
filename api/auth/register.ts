@@ -50,8 +50,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       token,
       user: { id: user.id, email: user.email },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Registration error:', error);
-    return res.status(500).json({ error: 'Failed to create account' });
+    const message = error?.message || 'Failed to create account';
+    return res.status(500).json({ error: message });
   }
 }
