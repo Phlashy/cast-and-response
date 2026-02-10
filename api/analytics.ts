@@ -31,6 +31,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     const sql = neon(process.env.DATABASE_URL);
 
+    // Ensure reactions table exists
+    await sql`
+      CREATE TABLE IF NOT EXISTS reactions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        episode_url TEXT NOT NULL,
+        podcast_title TEXT,
+        episode_title TEXT,
+        emoji VARCHAR(10) NOT NULL,
+        timestamp REAL NOT NULL,
+        comment TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
     // If episode is provided, get detailed analytics for that episode
     if (episode && typeof episode === 'string') {
       // Get all reactions for this episode (aggregated from all users)
