@@ -4,9 +4,11 @@ import { EpisodeList } from './components/EpisodeList';
 import { AudioPlayer } from './components/AudioPlayer';
 import { EmojiReactions } from './components/EmojiReactions';
 import { SavedFeeds } from './components/SavedFeeds';
+import { AuthModal } from './components/AuthModal';
 import { useAudioPlayer } from './hooks/useAudioPlayer';
 import { useSavedFeeds } from './hooks/useSavedFeeds';
 import { useReactions } from './hooks/useReactions';
+import { useAuth } from './contexts/AuthContext';
 import { Episode, PodcastFeed } from './types/podcast';
 
 const CORS_PROXIES = [
@@ -147,10 +149,16 @@ function App() {
   const [loadingStatus, setLoadingStatus] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
+  const { user, token, logout } = useAuth();
   const { isPlaying, currentTime, duration, isLoaded, playbackRate, togglePlay, seek, setSpeed, loadAudio } = useAudioPlayer();
   const { savedFeeds, saveFeed, removeFeed, isFeedSaved } = useSavedFeeds();
-  const { reactions, addReaction, updateReaction } = useReactions(selectedEpisode?.audioUrl || null);
+  const { reactions, addReaction, updateReaction } = useReactions(
+    selectedEpisode?.audioUrl || null,
+    token,
+    { podcastTitle: feed?.title, episodeTitle: selectedEpisode?.title }
+  );
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleLoadFeed = useCallback(async (url: string) => {
@@ -235,13 +243,36 @@ function App() {
   return (
     <div className="min-h-screen bg-zinc-950">
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold text-zinc-100 mb-2">
-            Cast & Response
-          </h1>
-          <p className="text-zinc-500">
-            Listen to podcasts and react with timestamped comments
-          </p>
+        <header className="mb-8 flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-zinc-100 mb-2">
+              Cast & Response
+            </h1>
+            <p className="text-zinc-500">
+              Listen to podcasts and react with timestamped comments
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {user ? (
+              <>
+                <span className="text-sm text-zinc-400">{user.email}</span>
+                <button
+                  onClick={logout}
+                  className="px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-300 transition-colors"
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setShowAuthModal(true)}
+                className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg
+                           hover:bg-emerald-500 transition-colors"
+              >
+                Sign in
+              </button>
+            )}
+          </div>
         </header>
 
         <div className="mb-6">
@@ -278,6 +309,9 @@ function App() {
                 We've pre-loaded <span className="text-zinc-200">Articles of Interest</span> for you to try.
                 Select an episode below, then add emoji reactions and comments as you listen - they'll be
                 timestamped and saved. Click any reaction to jump back to that moment.
+                {!user && (
+                  <span className="text-emerald-500"> Sign in to sync your reactions across devices.</span>
+                )}
               </p>
               <div className="mb-4">
                 <h3 className="text-sm font-medium text-zinc-300 mb-2">Or try another podcast:</h3>
@@ -389,6 +423,8 @@ function App() {
           </div>
         )}
       </div>
+
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
   );
 }
