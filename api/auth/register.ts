@@ -1,11 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sql, initDb } from '../lib/db';
-
-// Use dynamic imports for CommonJS modules
-let bcrypt: any;
-let jwt: any;
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
+import { neon } from '@neondatabase/serverless';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
@@ -32,15 +26,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Dynamic imports for CommonJS modules
-    if (!bcrypt) {
-      bcrypt = (await import('bcryptjs')).default;
-    }
-    if (!jwt) {
-      jwt = (await import('jsonwebtoken')).default;
-    }
+    // Direct imports
+    const bcrypt = (await import('bcryptjs')).default;
+    const jwt = (await import('jsonwebtoken')).default;
 
-    await initDb();
+    const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+
+    // Direct database connection
+    if (!process.env.DATABASE_URL) {
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+    const sql = neon(process.env.DATABASE_URL);
+
+    // Create tables if needed
+    await sql`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
 
     // Check if user already exists
     const existing = await sql`SELECT id FROM users WHERE email = ${email}`;
@@ -65,7 +71,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error: any) {
     console.error('Registration error:', error);
-    const message = error?.message || 'Failed to create account';
-    return res.status(500).json({ error: message });
+    return res.status(500).json({
+      error: 'Failed to create account',
+      details: error?.message || 'Unknown error'
+    });
   }
 }
