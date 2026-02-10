@@ -1,10 +1,16 @@
 import { neon } from '@neondatabase/serverless';
 
-if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL environment variable is not set');
-}
+let sqlClient: ReturnType<typeof neon> | null = null;
 
-export const sql = neon(process.env.DATABASE_URL);
+export function sql(strings: TemplateStringsArray, ...values: any[]) {
+  if (!sqlClient) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL environment variable is not set');
+    }
+    sqlClient = neon(process.env.DATABASE_URL);
+  }
+  return sqlClient(strings, ...values);
+}
 
 // Initialize database tables
 export async function initDb() {
